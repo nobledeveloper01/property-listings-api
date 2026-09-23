@@ -2,6 +2,8 @@ import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+
+import { MIGRATIONS_GLOB } from './database/schema-paths.js';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware.js';
@@ -30,6 +32,11 @@ import { ListingsModule } from './modules/listings/listings.module.js';
             ? config.getOrThrow<string>('TEST_DATABASE_URL')
             : config.getOrThrow<string>('DATABASE_URL'),
         autoLoadEntities: true,
+        // Without this the module has no migrations to run, so a test suite
+        // that calls runMigrations() against a fresh database applies nothing
+        // and then fails on the first query. It passed locally only because
+        // that database had been migrated by hand once.
+        migrations: [MIGRATIONS_GLOB],
         // Migrations own the schema. `synchronize` would quietly rewrite
         // production tables on deploy, and it cannot create the GiST index
         // this service depends on anyway.
