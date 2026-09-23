@@ -1,5 +1,3 @@
-import 'reflect-metadata';
-
 import dataSource from '../data-source.js';
 import { Listing } from '../../modules/listings/entities/listing.entity.js';
 import { Furnishing } from '../../modules/listings/enums/furnishing.enum.js';
