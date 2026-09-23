@@ -12,7 +12,13 @@ Built with NestJS, PostgreSQL and PostGIS. The full API documentation is at
 
 ## What you need
 
-Docker and Node 20 or newer.
+Docker and Node 20 or newer. Nothing else has to be installed, not even a
+Postgres client, since everything that talks to the database runs inside the
+container.
+
+On an Apple Silicon Mac, Docker will say the database image was built for
+Intel and is running through emulation. That is expected and it works fine, it
+just takes a few seconds longer to start.
 
 ## How to run it
 
