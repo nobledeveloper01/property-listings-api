@@ -3,6 +3,8 @@ import {
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
+import { ApiPaginatedResponse } from '../../../common/decorators/api-paginated-response.decorator.js';
+
 import { CreateListingDto } from '../dto/create-listing.dto.js';
 import { ListingResponseDto } from '../dto/listing-response.dto.js';
 import { SearchListingsDto } from '../dto/search-listings.dto.js';
@@ -37,7 +39,7 @@ export class ListingsController {
       'All filters are optional. Supply latitude, longitude and radiusKm together to search by ' +
       'distance; results are then ordered nearest first and carry distanceMetres.',
   })
-  @ApiOkResponse({ type: ListingResponseDto, isArray: true })
+  @ApiPaginatedResponse(ListingResponseDto)
   findAll(@Query() criteria: SearchListingsDto) {
     return this.listings.findAll(criteria);
   }

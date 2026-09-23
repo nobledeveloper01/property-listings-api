@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware.js';
 import { validateEnv } from './config/env.validation.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { ListingsModule } from './modules/listings/listings.module.js';
@@ -41,4 +42,9 @@ import { ListingsModule } from './modules/listings/listings.module.js';
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    // Every route, including ones that never reach a controller.
+    consumer.apply(RequestLoggerMiddleware).forRoutes('*');
+  }
+}
