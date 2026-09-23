@@ -88,7 +88,7 @@ export class CreateListingDto {
   @Type(() => Number) @IsLongitude()
   longitude!: number;
 
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: 'uuid', example: '80e3754d-328b-4a42-bac4-fe9dc50f2bc0' })
   @IsUUID()
   agentId!: string;
 }

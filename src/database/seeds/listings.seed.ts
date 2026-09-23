@@ -13,10 +13,7 @@ import { PropertyCategory } from '../../modules/listings/enums/property-category
  * gets an answer they can check against a map rather than a list of points
  * that were generated to make the test pass.
  */
-const AGENTS = [
-  '11111111-1111-4111-8111-111111111111',
-  '22222222-2222-4222-8222-222222222222',
-];
+const AGENTS = ['80e3754d-328b-4a42-bac4-fe9dc50f2bc0', '62cd7ee5-8541-4393-a3ba-25c0daf18e4f'];
 
 /**
  * Ids and references are fixed rather than generated.
@@ -25,10 +22,15 @@ const AGENTS = [
  * which means no example in the API documentation can ever be correct, and a
  * reviewer who copies an id from one response gets a 404 after the next
  * reseed. Pinning them makes "Try it out" work out of the box.
+ *
+ * They are real randomUUID output, generated once and pasted, not values like
+ * 1111...1111 typed out by hand. Fixed is the property this needs; guessable
+ * is not, and a readable id in a fixture is how a readable id ends up
+ * somewhere it matters.
  */
 const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; reference: string; id: string }> = [
   {
-    id: 'a1000000-0000-4000-8000-000000000001',
+    id: '5f14d1fa-6534-49ed-b23f-c4d5cb83c759',
     reference: 'EL-YABA23',
     title: 'Three bedroom flat, Herbert Macaulay Way',
     description: 'Newly built three bedroom flat with a fitted kitchen and a borehole.',
@@ -40,7 +42,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; refe
     latitude: 6.5095, longitude: 3.3711,
   },
   {
-    id: 'a1000000-0000-4000-8000-000000000002',
+    id: '5edae5aa-602d-4357-b5a7-bb538203b91b',
     reference: 'EL-PHAS24',
     title: 'Two bedroom serviced flat, Lekki Phase 1',
     description: 'Serviced two bedroom with 24 hour power and a shared gym.',
@@ -52,7 +54,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; refe
     latitude: 6.4698, longitude: 3.5852,
   },
   {
-    id: 'a1000000-0000-4000-8000-000000000003',
+    id: 'e6c94c58-6e9b-4ea1-831d-1b1b4c297523',
     reference: 'EL-GRA345',
     title: 'Four bedroom detached duplex, Ikeja GRA',
     description: 'Detached duplex on a quiet street, with a boys quarters.',
@@ -64,7 +66,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; refe
     latitude: 6.6018, longitude: 3.3515,
   },
   {
-    id: 'a1000000-0000-4000-8000-000000000004',
+    id: '38f3de18-6969-4d8f-a9c9-0c6d999c03f0',
     reference: 'EL-VCTRA2',
     title: 'Furnished one bedroom shortlet, Victoria Island',
     description: 'Fully furnished one bedroom, let by the night.',
@@ -76,7 +78,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; refe
     latitude: 6.4281, longitude: 3.4219,
   },
   {
-    id: 'a1000000-0000-4000-8000-000000000005',
+    id: '0cd00b31-017c-4790-bfb4-a96736f98868',
     reference: 'EL-SURU25',
     title: 'Self contain, Surulere',
     description: 'Single room self contain with its own kitchen and bathroom.',
@@ -88,7 +90,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; refe
     latitude: 6.4969, longitude: 3.3541,
   },
   {
-    id: 'a1000000-0000-4000-8000-000000000006',
+    id: '2e55a58a-1c27-4242-84f2-631d2dc25c47',
     reference: 'EL-AJAH26',
     title: 'Five bedroom duplex, Ajah',
     description: 'Newly finished five bedroom duplex in a gated estate.',

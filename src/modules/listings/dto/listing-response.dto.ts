@@ -14,7 +14,7 @@ import { PropertyCategory } from '../enums/property-category.enum.js';
  * mobile app wants to parse.
  */
 export class ListingResponseDto {
-  @ApiProperty({ format: 'uuid', example: 'a1000000-0000-4000-8000-000000000001', description: 'Seeded listings use stable ids, so this one resolves after `pnpm seed`.' })
+  @ApiProperty({ format: 'uuid', example: '5f14d1fa-6534-49ed-b23f-c4d5cb83c759', description: 'Seeded listings use stable ids, so this one resolves after `pnpm seed`.' })
   id!: string;
   @ApiProperty({ example: 'EL-YABA23', description: 'The reference a caller quotes. Seeded listings use stable references, so this one resolves after `pnpm seed`.' })
   reference!: string;
@@ -44,7 +44,7 @@ export class ListingResponseDto {
   @ApiProperty() latitude!: number;
   @ApiProperty() longitude!: number;
 
-  @ApiProperty({ format: 'uuid' }) agentId!: string;
+  @ApiProperty({ format: 'uuid', example: '80e3754d-328b-4a42-bac4-fe9dc50f2bc0' }) agentId!: string;
   @ApiProperty() createdAt!: Date;
   @ApiProperty() updatedAt!: Date;
 
