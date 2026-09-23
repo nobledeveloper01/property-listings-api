@@ -18,8 +18,17 @@ const AGENTS = [
   '22222222-2222-4222-8222-222222222222',
 ];
 
-const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; reference: string }> = [
+/**
+ * Ids and references are fixed rather than generated.
+ *
+ * Seeding truncates and rewrites, so generated ones change on every run —
+ * which means no example in the API documentation can ever be correct, and a
+ * reviewer who copies an id from one response gets a 404 after the next
+ * reseed. Pinning them makes "Try it out" work out of the box.
+ */
+const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; reference: string; id: string }> = [
   {
+    id: 'a1000000-0000-4000-8000-000000000001',
     reference: 'EL-YABA23',
     title: 'Three bedroom flat, Herbert Macaulay Way',
     description: 'Newly built three bedroom flat with a fitted kitchen and a borehole.',
@@ -31,6 +40,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; refe
     latitude: 6.5095, longitude: 3.3711,
   },
   {
+    id: 'a1000000-0000-4000-8000-000000000002',
     reference: 'EL-PHAS24',
     title: 'Two bedroom serviced flat, Lekki Phase 1',
     description: 'Serviced two bedroom with 24 hour power and a shared gym.',
@@ -42,6 +52,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; refe
     latitude: 6.4698, longitude: 3.5852,
   },
   {
+    id: 'a1000000-0000-4000-8000-000000000003',
     reference: 'EL-GRA345',
     title: 'Four bedroom detached duplex, Ikeja GRA',
     description: 'Detached duplex on a quiet street, with a boys quarters.',
@@ -53,6 +64,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; refe
     latitude: 6.6018, longitude: 3.3515,
   },
   {
+    id: 'a1000000-0000-4000-8000-000000000004',
     reference: 'EL-VCTRA2',
     title: 'Furnished one bedroom shortlet, Victoria Island',
     description: 'Fully furnished one bedroom, let by the night.',
@@ -64,6 +76,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; refe
     latitude: 6.4281, longitude: 3.4219,
   },
   {
+    id: 'a1000000-0000-4000-8000-000000000005',
     reference: 'EL-SURU25',
     title: 'Self contain, Surulere',
     description: 'Single room self contain with its own kitchen and bathroom.',
@@ -75,6 +88,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; refe
     latitude: 6.4969, longitude: 3.3541,
   },
   {
+    id: 'a1000000-0000-4000-8000-000000000006',
     reference: 'EL-AJAH26',
     title: 'Five bedroom duplex, Ajah',
     description: 'Newly finished five bedroom duplex in a gated estate.',
