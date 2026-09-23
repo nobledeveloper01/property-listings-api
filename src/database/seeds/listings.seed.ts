@@ -1,4 +1,5 @@
 import dataSource from '../data-source.js';
+import { Agent } from '../../modules/agents/entities/agent.entity.js';
 import { Listing } from '../../modules/listings/entities/listing.entity.js';
 import { Furnishing } from '../../modules/listings/enums/furnishing.enum.js';
 import { ListingType } from '../../modules/listings/enums/listing-type.enum.js';
@@ -13,7 +14,29 @@ import { PropertyCategory } from '../../modules/listings/enums/property-category
  * gets an answer they can check against a map rather than a list of points
  * that were generated to make the test pass.
  */
-const AGENTS = ['80e3754d-328b-4a42-bac4-fe9dc50f2bc0', '62cd7ee5-8541-4393-a3ba-25c0daf18e4f'];
+/**
+ * Two agents, because every listing must belong to one.
+ *
+ * One works for a firm and one is independent, which is the split you actually
+ * see here, and it exercises `agencyName` being null as a normal state rather
+ * than missing data.
+ */
+const AGENTS: Array<Partial<Agent> & { id: string }> = [
+  {
+    id: '80e3754d-328b-4a42-bac4-fe9dc50f2bc0',
+    name: 'Chinedu Okafor',
+    phone: '+2348031234567',
+    email: 'chinedu@lagosrealty.ng',
+    agencyName: 'Lagos Realty',
+  },
+  {
+    id: '62cd7ee5-8541-4393-a3ba-25c0daf18e4f',
+    name: 'Aisha Bello',
+    phone: '08129876543',
+    email: 'aisha.bello@example.ng',
+    agencyName: null,
+  },
+];
 
 /**
  * Ids and references are fixed rather than generated.
@@ -107,22 +130,26 @@ async function seed(): Promise<void> {
   await dataSource.initialize();
 
   const repository = dataSource.getRepository(Listing);
+  const agents = dataSource.getRepository(Agent);
 
   // Idempotent: running it twice should not double the catalogue, and a
-  // reviewer will run it twice.
-  await repository.query('TRUNCATE listings');
+  // reviewer will run it twice. Listings go first because they point at
+  // agents, and CASCADE lets one statement clear both in the right order.
+  await repository.query('TRUNCATE listings, agents CASCADE');
+
+  await agents.save(AGENTS.map((agent) => agents.create(agent)));
 
   await repository.save(
     SEED.map(({ latitude, longitude, ...rest }, index) =>
       repository.create({
         ...rest,
-        agentId: AGENTS[index % AGENTS.length],
+        agentId: AGENTS[index % AGENTS.length].id,
         location: { type: 'Point' as const, coordinates: [longitude, latitude] as [number, number] },
       }),
     ),
   );
 
-  process.stdout.write(`Seeded ${SEED.length} listings.\n`);
+  process.stdout.write(`Seeded ${AGENTS.length} agents and ${SEED.length} listings.\n`);
 
   await dataSource.destroy();
 }

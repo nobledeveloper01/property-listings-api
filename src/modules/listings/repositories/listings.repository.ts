@@ -5,6 +5,8 @@ import { Repository, type SelectQueryBuilder } from 'typeorm';
 import { Listing } from '../entities/listing.entity.js';
 import type { SearchListingsDto } from '../dto/search-listings.dto.js';
 
+import { UNIQUE_VIOLATION, violates } from '../../../common/database/postgres-errors.js';
+
 /** A listing plus how far it was from the searched point, when one was given. */
 export interface ListingWithDistance {
   listing: Listing;
@@ -53,11 +55,9 @@ export class ListingsRepository {
     throw new ConflictException('Could not allocate a unique listing reference.');
   }
 
-  /** Postgres 23505, narrowed to the reference index so other conflicts still surface. */
+  /** Narrowed to the reference index, so any other conflict still surfaces. */
   private isReferenceCollision(error: unknown): boolean {
-    const candidate = error as { code?: string; constraint?: string };
-
-    return candidate?.code === '23505' && candidate?.constraint === 'idx_listings_reference';
+    return violates(error, UNIQUE_VIOLATION, 'idx_listings_reference');
   }
 
   /**
@@ -79,6 +79,11 @@ export class ListingsRepository {
    */
   async search(criteria: SearchListingsDto): Promise<[ListingWithDistance[], number]> {
     const query = this.repository.createQueryBuilder('listing');
+
+    // One join rather than a query per listing. Without it a page of 20
+    // results would fetch the agent 20 more times, which is the N+1 that shows
+    // up as "the list endpoint got slow" three months later.
+    query.leftJoinAndSelect('listing.agent', 'agent');
 
     this.applyFilters(query, criteria);
 
@@ -132,6 +137,11 @@ export class ListingsRepository {
    */
   private async countMatching(criteria: SearchListingsDto): Promise<number> {
     const query = this.repository.createQueryBuilder('listing');
+
+    // One join rather than a query per listing. Without it a page of 20
+    // results would fetch the agent 20 more times, which is the N+1 that shows
+    // up as "the list endpoint got slow" three months later.
+    query.leftJoinAndSelect('listing.agent', 'agent');
 
     this.applyFilters(query, criteria);
 

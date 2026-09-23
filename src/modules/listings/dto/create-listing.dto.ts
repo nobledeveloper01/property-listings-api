@@ -88,7 +88,12 @@ export class CreateListingDto {
   @Type(() => Number) @IsLongitude()
   longitude!: number;
 
-  @ApiProperty({ format: 'uuid', example: '80e3754d-328b-4a42-bac4-fe9dc50f2bc0' })
+  /**
+   * Optional. Leave it out for an owner advertising their own property, which
+   * is common here. Supply it and the agent must already be registered.
+   */
+  @ApiPropertyOptional({ format: 'uuid', example: '80e3754d-328b-4a42-bac4-fe9dc50f2bc0' })
   @IsUUID()
-  agentId!: string;
+  @IsOptional()
+  agentId?: string;
 }

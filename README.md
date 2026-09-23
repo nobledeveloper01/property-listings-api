@@ -21,7 +21,7 @@ pnpm install
 cp .env.example .env
 docker compose up -d          # starts the database
 pnpm migration:run            # creates the table and the indexes
-pnpm seed                     # adds 6 real Lagos listings to play with
+pnpm seed                     # adds 2 agents and 6 real Lagos listings
 pnpm start:dev
 ```
 
@@ -45,8 +45,8 @@ At 5 km the only thing near Victoria Island is the shortlet.
 
 ```bash
 pnpm db:test:create   # run this once
-pnpm test             # 16 tests, no database needed
-pnpm test:e2e         # 17 tests against a real database
+pnpm test             # 18 tests, no database needed
+pnpm test:e2e         # 28 tests against a real database
 ```
 
 The second set of tests empties the table between each test. So they run on a
@@ -61,6 +61,8 @@ middle of demoing.
 
 | Method | Path | What it does |
 |---|---|---|
+| `POST` | `/agents` | Register an estate agent |
+| `GET` | `/agents/:id` | Get one agent |
 | `POST` | `/listings` | Add a listing |
 | `GET` | `/listings` | List and search, with paging |
 | `GET` | `/listings/:id` | Get one listing by its ID |
@@ -73,6 +75,40 @@ middle of demoing.
 just a second name for it, because that is the path most people try first.
 
 ## Why I built it this way
+
+### Agents are real records, not just an ID
+
+An "agent" here is an estate agent. The person or firm marketing the property,
+the one a renter calls when they want to see the flat.
+
+At first a listing just stored an agent ID and nothing else. That was wrong in
+two ways.
+
+First, the ID pointed at nothing. There was no agents table, so you could post
+a listing owned by any random ID you made up and nothing would notice. I tested
+it and it went straight through.
+
+Second, and worse, it was useless. Someone browsing sees a flat they like and
+wants to ring the agent. All the API could give them was a long random ID.
+
+So agents are now their own table, with a name, a phone number, an email and an
+agency if they have one. A listing points at one, and the database enforces it:
+if you name an agent who does not exist, the listing is refused. Listings come
+back with the agent's name and phone attached, so a buyer has someone to call.
+
+Two smaller decisions inside that:
+
+- **A listing does not have to have an agent.** Plenty of people advertise
+  their own property directly. Forcing an agent would just push those callers
+  into inventing a fake one, which is worse than having none. So the field is
+  optional, and if you do fill it in, it has to be real.
+- **The agent's email is not shown on listings.** A search can return 100
+  listings, and that would mean handing out 100 email addresses to anyone who
+  asked. The name and phone are enough to make contact. The full record is
+  there on `/agents/:id` if you need it.
+
+You also cannot delete an agent who still has listings. The database refuses
+it, rather than quietly deleting all their properties along with them.
 
 ### Searching and listing are the same job
 
@@ -196,15 +232,21 @@ it would be a horrible bug to track down.
 
 ## What I would do next
 
-**Login and permissions, first.** There is none right now. The agent ID is sent
-by whoever calls the API, so anyone could post a listing pretending to be
-another agent, or delete someone else's listing.
+**Login and permissions, first.** Agents are real records now and a listing
+cannot name one that does not exist. But there is still no login, so nothing
+checks that you *are* the agent you claim to be. Anyone who knows an agent's ID
+can post listings as them, or delete theirs.
 
-This was a deliberate choice for a short exercise. I put the time into the
-search and the data design instead, and I would rather say that plainly than
-add a fake looking security check. In a real version the agent would log in,
-the agent ID would come from their login rather than from the request, and the
-API would check you own a listing before letting you change or delete it.
+That is the one real gap left, and it was a deliberate choice for a short
+exercise. I put the time into the search, the data design and making agents
+mean something, and I would rather say that plainly than add a security check
+that only looks like one. In a real version the agent would log in, their ID
+would come from that login instead of from the request body, and the API would
+check you own a listing before letting you change or delete it.
+
+Agent verification belongs in the same piece of work. Fake agents are one of
+the biggest trust problems in Nigerian property, so a real version would need a
+way to mark an agent as checked, and to show that to buyers.
 
 After that:
 

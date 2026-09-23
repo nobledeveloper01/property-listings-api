@@ -37,7 +37,10 @@ describe('Listings (e2e)', () => {
   const IKEJA_GRA = { latitude: 6.6018, longitude: 3.3515 };
   const LEKKI = { latitude: 6.4698, longitude: 3.5852 };
 
-  const agentId = '3f8c1a2e-2222-4b2c-8d3e-9a7b6c5d4e3f';
+  // Set in beforeAll. Every listing must belong to a registered agent now, so
+  // the suite registers one rather than inventing a UUID the database will
+  // refuse.
+  let agentId: string;
 
   const listing = (over: Record<string, unknown> = {}) => ({
     title: 'Test listing',
@@ -78,6 +81,21 @@ describe('Listings (e2e)', () => {
     // query on every run after the first, and means `pnpm test:e2e` is the
     // only command needed on a fresh checkout.
     await dataSource.runMigrations();
+
+    // Agents outlive the per-test truncation below, so this runs once.
+    await dataSource.query('TRUNCATE listings, agents CASCADE');
+
+    const { body } = await request(app.getHttpServer())
+      .post('/agents')
+      .send({
+        name: 'Test Agent',
+        phone: '+2348030000001',
+        email: 'test.agent@example.ng',
+        agencyName: 'Test Realty',
+      })
+      .expect(201);
+
+    agentId = body.id;
   });
 
   beforeEach(async () => {
@@ -229,6 +247,118 @@ describe('Listings (e2e)', () => {
       // `search` is not a UUID, so if it were declared after `:id` this would
       // come back 400 rather than a result set.
       await request(app.getHttpServer()).get('/listings/search').expect(200);
+    });
+  });
+
+  describe('agents', () => {
+    it('refuses a listing for an agent that does not exist', async () => {
+      // The foreign key would refuse this anyway; the point of the check in
+      // the service is that the caller gets a 400 they can act on.
+      const { body } = await request(app.getHttpServer())
+        .post('/listings')
+        .send(listing({ agentId: '11111111-2222-4333-8444-555555555555' }))
+        .expect(400);
+
+      expect(body.message).toMatch(/No agent with id/);
+    });
+
+    it('returns who to call, not just an id', async () => {
+      const { body: created } = await post(listing({ title: 'Flat with a contact' }));
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/listings/${created.id}`)
+        .expect(200);
+
+      expect(body.agentId).toBe(agentId);
+      expect(body.agent).toMatchObject({
+        id: agentId,
+        name: 'Test Agent',
+        phone: '+2348030000001',
+        agencyName: 'Test Realty',
+      });
+    });
+
+    it('keeps the agent email out of listing responses', async () => {
+      await post(listing());
+
+      const { body } = await request(app.getHttpServer()).get('/listings').expect(200);
+
+      // A search returning a page of listings should not hand out a page of
+      // email addresses. The full record is available from /agents/:id.
+      expect(JSON.stringify(body)).not.toContain('test.agent@example.ng');
+      expect(body.data[0].agent.phone).toBe('+2348030000001');
+    });
+
+    it('carries the agent on a freshly created listing too', async () => {
+      const { body: created } = await post(listing({ title: 'Created with contact' }));
+
+      expect(created.agent).toMatchObject({ id: agentId, name: 'Test Agent' });
+    });
+
+    it('accepts a listing with no agent at all', async () => {
+      // An owner advertising their own property. Not every listing goes
+      // through an agent, and requiring one would push callers into inventing
+      // a fake agent, which is worse than having none.
+      const { agentId: _omitted, ...withoutAgent } = listing({ title: 'Owner listing' });
+
+      const { body, status } = await post(withoutAgent);
+
+      expect(status).toBe(201);
+      expect(body.agentId).toBeNull();
+      expect(body.agent).toBeUndefined();
+    });
+
+    it('still finds an agentless listing in a search', async () => {
+      const { agentId: _omitted, ...withoutAgent } = listing({ title: 'Owner listing', ...YABA });
+      await post(withoutAgent).expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .get('/listings')
+        .query({ ...YABA, radiusKm: 5 })
+        .expect(200);
+
+      expect(body.data.some((l: { title: string }) => l.title === 'Owner listing')).toBe(true);
+    });
+
+    it('refuses a second agent on the same phone number', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/agents')
+        .send({ name: 'Someone Else', phone: '+2348030000001', email: 'different@example.ng' })
+        .expect(409);
+
+      expect(body.message).toMatch(/phone number/);
+    });
+
+    it('refuses a second agent on the same email', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/agents')
+        .send({ name: 'Someone Else', phone: '+2348039999999', email: 'test.agent@example.ng' })
+        .expect(409);
+
+      expect(body.message).toMatch(/email/);
+    });
+
+    it('rejects a phone number that is not a Nigerian mobile', async () => {
+      await request(app.getHttpServer())
+        .post('/agents')
+        .send({ name: 'Bad Phone', phone: '+14155550123', email: 'bad.phone@example.ng' })
+        .expect(400);
+    });
+
+    it('treats a missing agency as independent rather than as missing data', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/agents')
+        .send({ name: 'Independent Agent', phone: '08031112222', email: 'independent@example.ng' })
+        .expect(201);
+
+      expect(body.agencyName).toBeNull();
+    });
+
+    it('fetches an agent by id and 404s for one that does not exist', async () => {
+      const { body } = await request(app.getHttpServer()).get(`/agents/${agentId}`).expect(200);
+      expect(body.email).toBe('test.agent@example.ng');
+
+      await request(app.getHttpServer()).get('/agents/11111111-2222-4333-8444-555555555555').expect(404);
     });
   });
 

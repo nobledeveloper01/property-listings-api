@@ -1,5 +1,6 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
+import { Agent } from '../../agents/entities/agent.entity.js';
 import { Furnishing } from '../enums/furnishing.enum.js';
 import { ListingStatus } from '../enums/listing-status.enum.js';
 import { ListingType } from '../enums/listing-type.enum.js';
@@ -135,9 +136,27 @@ export class Listing {
 
   // --- Who is selling it ----------------------------------------------
 
-  @Column({ type: 'uuid', name: 'agent_id' })
+  /**
+   * The agent marketing this property, if one is.
+   *
+   * Nullable, because an owner listing their own place directly is normal here
+   * and should not have to invent an agent. Null means "no agent", which is
+   * different from an agent who is merely unknown.
+   *
+   * When it is set, a foreign key guarantees the agent exists. Before the
+   * constraint this column was a UUID-shaped wish: any value was accepted, so
+   * a listing could name an agent nobody had ever registered, and the only
+   * symptom was a buyer with no one to call.
+   */
+  @Column({ type: 'uuid', name: 'agent_id', nullable: true })
   @Index('idx_listings_agent')
-  agentId!: string;
+  agentId!: string | null;
+
+  // `RESTRICT` on delete, so removing an agent who still has listings fails
+  // loudly rather than cascading away their whole portfolio.
+  @ManyToOne(() => Agent, { onDelete: 'RESTRICT', nullable: true })
+  @JoinColumn({ name: 'agent_id' })
+  agent?: Agent;
 
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt!: Date;

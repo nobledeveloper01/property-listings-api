@@ -7,6 +7,8 @@ import { ListingType } from '../enums/listing-type.enum.js';
 import { PricePeriod } from '../enums/price-period.enum.js';
 import { PropertyCategory } from '../enums/property-category.enum.js';
 
+import { ListingAgentDto } from '../../agents/dto/agent-response.dto.js';
+
 /**
  * What a client sees. Separate from the entity on purpose: the entity is a
  * database shape that will grow columns with no business on the wire, and
@@ -44,7 +46,19 @@ export class ListingResponseDto {
   @ApiProperty() latitude!: number;
   @ApiProperty() longitude!: number;
 
-  @ApiProperty({ format: 'uuid', example: '80e3754d-328b-4a42-bac4-fe9dc50f2bc0' }) agentId!: string;
+  @ApiPropertyOptional({ format: 'uuid', example: '80e3754d-328b-4a42-bac4-fe9dc50f2bc0', nullable: true, type: String })
+  agentId!: string | null;
+
+  /**
+   * Who to call about this property.
+   *
+   * Absent when the listing has no agent, which is a real state and not a
+   * loading failure: an owner can advertise their own property. `agentId`
+   * stays alongside it so a client that only wants the key does not have to
+   * reach into a nested object.
+   */
+  @ApiPropertyOptional({ type: ListingAgentDto })
+  agent?: ListingAgentDto;
   @ApiProperty() createdAt!: Date;
   @ApiProperty() updatedAt!: Date;
 
@@ -80,6 +94,9 @@ export class ListingResponseDto {
       latitude,
       longitude,
       agentId: listing.agentId,
+      ...(listing.agent === undefined || listing.agent === null
+        ? {}
+        : { agent: ListingAgentDto.from(listing.agent) }),
       createdAt: listing.createdAt,
       updatedAt: listing.updatedAt,
       ...(distanceMetres === undefined ? {} : { distanceMetres: Math.round(distanceMetres) }),

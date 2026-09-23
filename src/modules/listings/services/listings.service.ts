@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { PaginatedResponseDto } from '../../../common/dto/paginated-response.dto.js';
+import type { Agent } from '../../agents/entities/agent.entity.js';
+import { AgentsRepository } from '../../agents/repositories/agents.repository.js';
 import type { CreateListingDto } from '../dto/create-listing.dto.js';
 import { ListingResponseDto } from '../dto/listing-response.dto.js';
 import type { SearchListingsDto } from '../dto/search-listings.dto.js';
@@ -17,13 +19,23 @@ export class ListingsService {
     @InjectRepository(Listing)
     private readonly listings: Repository<Listing>,
     private readonly searchRepository: ListingsRepository,
+    private readonly agents: AgentsRepository,
   ) {}
 
   async create(dto: CreateListingDto): Promise<ListingResponseDto> {
+    // Only checked when one was supplied; a listing without an agent is valid.
+    const agent = dto.agentId === undefined ? undefined : await this.requireAgent(dto.agentId);
+
     const listing = await this.searchRepository.createWithReference(
       this.toEntity(dto),
       generateListingReference,
     );
+
+    // The agent we just validated, reused rather than re-queried, so a created
+    // listing carries the same contact details a fetched one does.
+    if (agent !== undefined) {
+      listing.agent = agent;
+    }
 
     return ListingResponseDto.from(listing);
   }
@@ -45,7 +57,7 @@ export class ListingsService {
 
   /** Lookup by the reference a caller quotes rather than the UUID. */
   async findByReference(reference: string): Promise<ListingResponseDto> {
-    const listing = await this.listings.findOne({ where: { reference } });
+    const listing = await this.listings.findOne({ where: { reference }, relations: { agent: true } });
 
     if (listing === null) {
       throw new NotFoundException(`No listing with reference ${reference}.`);
@@ -55,6 +67,8 @@ export class ListingsService {
   }
 
   async update(id: string, dto: UpdateListingDto): Promise<ListingResponseDto> {
+    const reassignedTo = dto.agentId === undefined ? undefined : await this.requireAgent(dto.agentId);
+
     const listing = await this.getOrFail(id);
 
     // `merge` rather than `save(dto)`: only the keys present in the request
@@ -62,6 +76,12 @@ export class ListingsService {
     // mentioned. The reference and the id are not in UpdateListingDto at all,
     // so neither can be reassigned through this route.
     this.listings.merge(listing, this.toEntity(dto));
+
+    // Keep the loaded relation in step with the column, or a reassignment
+    // would answer with the previous agent's name against the new agent's id.
+    if (reassignedTo !== undefined) {
+      listing.agent = reassignedTo;
+    }
 
     return ListingResponseDto.from(await this.listings.save(listing));
   }
@@ -75,7 +95,7 @@ export class ListingsService {
   }
 
   private async getOrFail(id: string): Promise<Listing> {
-    const listing = await this.listings.findOne({ where: { id } });
+    const listing = await this.listings.findOne({ where: { id }, relations: { agent: true } });
 
     if (listing === null) {
       throw new NotFoundException(`No listing with id ${id}.`);
@@ -105,5 +125,31 @@ export class ListingsService {
         ? {}
         : { location: { type: 'Point' as const, coordinates: [longitude, latitude] as [number, number] } }),
     };
+  }
+
+  /**
+   * Rejects a listing for an agent who does not exist.
+   *
+   * The foreign key would refuse the row anyway, but it would surface as a
+   * database error and a 500. Checking first turns it into a 400 that names
+   * the problem, which is the difference between a caller fixing their request
+   * and a caller filing a bug.
+   *
+   * This is a check, not a lock: an agent deleted between here and the insert
+   * still hits the constraint. That race is acceptable because the constraint
+   * is the thing actually guaranteeing correctness, and the check exists only
+   * to give a better message in the overwhelmingly common case.
+   *
+   * Returns the agent so the caller can attach it to the response without
+   * asking the database for the same row twice.
+   */
+  private async requireAgent(agentId: string): Promise<Agent> {
+    const agent = await this.agents.findById(agentId);
+
+    if (agent === null) {
+      throw new BadRequestException(`No agent with id ${agentId}. Register the agent first.`);
+    }
+
+    return agent;
   }
 }

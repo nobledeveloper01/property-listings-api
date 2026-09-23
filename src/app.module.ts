@@ -9,6 +9,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware.js';
 import { validateEnv } from './config/env.validation.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { AgentsModule } from './modules/agents/agents.module.js';
 import { ListingsModule } from './modules/listings/listings.module.js';
 
 @Module({
@@ -55,6 +56,7 @@ import { ListingsModule } from './modules/listings/listings.module.js';
       ],
     }),
 
+    AgentsModule,
     ListingsModule,
     HealthModule,
   ],
