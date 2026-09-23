@@ -61,8 +61,14 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      # Not `pnpm db:test:create`. That script runs psql inside the compose
+      # container, so a reviewer needs nothing installed locally. Here the
+      # database is a service container and there is no compose project, but
+      # the runner does have psql, so it connects directly.
       - name: Create the test database
-        run: pnpm db:test:create
+        run: |
+          psql "$DATABASE_URL" -tc "SELECT 1 FROM pg_database WHERE datname='listings_test'" \
+            | grep -q 1 || psql "$DATABASE_URL" -c "CREATE DATABASE listings_test"
 
       # Runs after the unit tests so a failure here is unambiguously about the
       # database and not about logic the unit tests already cover.
