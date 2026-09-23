@@ -12,10 +12,18 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
  * so a caller cannot ask for the whole table.
  */
 export class PaginationQueryDto {
-  @ApiPropertyOptional({ minimum: 1, default: 1, description: 'One-based page number.' })
+  /**
+   * Capped, and not only for tidiness. `@IsInt()` happily accepts 1e21
+   * because that is an integer, and the resulting OFFSET overflowed
+   * Postgres' bigint and turned a bad request into a 500. Deep offset paging
+   * is also meaningless — nobody reads page forty thousand — and scanning
+   * that far is a cheap way to make the database work hard on request.
+   */
+  @ApiPropertyOptional({ minimum: 1, maximum: 10_000, default: 1, description: 'One-based page number.' })
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(10_000)
   @IsOptional()
   page = 1;
 

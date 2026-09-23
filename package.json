@@ -22,7 +22,8 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "migration:run": "tsx ./node_modules/typeorm/cli.js migration:run -d src/database/data-source.ts",
     "migration:revert": "tsx ./node_modules/typeorm/cli.js migration:revert -d src/database/data-source.ts",
-    "migration:show": "tsx ./node_modules/typeorm/cli.js migration:show -d src/database/data-source.ts"
+    "migration:show": "tsx ./node_modules/typeorm/cli.js migration:show -d src/database/data-source.ts",
+    "seed": "tsx src/database/seeds/listings.seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

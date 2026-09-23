@@ -1,3 +1,6 @@
+// A side-effect import, not an unused one: TypeORM's decorators read the
+// metadata this installs, and the CLI has no Nest bootstrap to do it first.
+// oxlint-disable-next-line no-unassigned-import
 import 'reflect-metadata';
 import { config as loadEnv } from 'dotenv';
 import { DataSource } from 'typeorm';

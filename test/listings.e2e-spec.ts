@@ -143,7 +143,7 @@ describe('Listings (e2e)', () => {
     it('treats bedrooms as a minimum, which is what a searcher means', async () => {
       const { body } = await request(app.getHttpServer()).get('/listings').query({ bedrooms: 3 });
 
-      expect(body.data.map((l: { bedrooms: number }) => l.bedrooms).sort()).toEqual([3, 4]);
+      expect(body.data.map((l: { bedrooms: number }) => l.bedrooms).toSorted()).toEqual([3, 4]);
     });
 
     it('filters on an inclusive price range', async () => {

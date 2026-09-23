@@ -37,6 +37,9 @@ export class ListingsRepository {
   ): Promise<Listing> {
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
+        // Sequential on purpose: each attempt exists only because the
+        // previous one collided, so there is nothing to parallelise.
+        // oxlint-disable-next-line no-await-in-loop
         return await this.repository.save(
           this.repository.create({ ...data, reference: mintReference() }),
         );
