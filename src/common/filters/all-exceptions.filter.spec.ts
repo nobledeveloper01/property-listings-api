@@ -46,7 +46,7 @@ describe('AllExceptionsFilter', () => {
       new ThrottlerException(),
       new Error('something unhandled'),
     ]) {
-      expect(Object.keys(capture(exception).body).sort()).toEqual(keys);
+      expect(Object.keys(capture(exception).body).toSorted()).toEqual(keys);
     }
   });
 
