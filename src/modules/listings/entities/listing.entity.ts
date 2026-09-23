@@ -33,8 +33,18 @@ import { PropertyCategory } from '../enums/property-category.enum.js';
 @Index('idx_listings_status_type_bedrooms', ['status', 'type', 'bedrooms'])
 @Index('idx_listings_price', ['priceMinor'])
 export class Listing {
+  /** The system identifier. Stable, opaque, and what every relation points at. */
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  /**
+   * The public reference, `EL-7K2M9Q`. What an agent puts on a signboard and
+   * a caller quotes. Unique, random rather than sequential, and drawn from an
+   * alphabet with no characters people misread aloud. See `listing-reference.ts`.
+   */
+  @Column({ type: 'varchar', length: 12 })
+  @Index('idx_listings_reference', { unique: true })
+  reference!: string;
 
   // --- What it is -----------------------------------------------------
 

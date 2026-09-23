@@ -15,6 +15,7 @@ import { PropertyCategory } from '../enums/property-category.enum.js';
  */
 export class ListingResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ example: 'EL-7K2M9Q', description: 'The reference a caller quotes.' }) reference!: string;
   @ApiProperty() title!: string;
   @ApiProperty() description!: string;
   @ApiProperty({ enum: ListingType }) type!: ListingType;
@@ -52,6 +53,7 @@ export class ListingResponseDto {
 
     return {
       id: listing.id,
+      reference: listing.reference,
       title: listing.title,
       description: listing.description,
       type: listing.type,

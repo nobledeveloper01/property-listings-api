@@ -1,0 +1,28 @@
+# Everything the API needs to run locally: `docker compose up -d`.
+#
+# The database image is postgis/postgis rather than postgres, because the
+# search depends on the PostGIS extension and a plain postgres image cannot
+# create it. Pinned to a major version pair so a rebuild in six months gets
+# the same database it was tested against.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: listings-db
+    environment:
+      POSTGRES_USER: listings
+      POSTGRES_PASSWORD: listings
+      POSTGRES_DB: listings
+    ports:
+      - '5433:5432' # 5433 on the host, so it does not fight a local postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      # The API's migrations run on start, so compose must not report the
+      # database ready before it can actually accept a connection.
+      test: ['CMD-SHELL', 'pg_isready -U listings -d listings']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db-data:
