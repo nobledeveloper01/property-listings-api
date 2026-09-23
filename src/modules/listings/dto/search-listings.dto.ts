@@ -3,7 +3,9 @@ import { IsEnum, IsInt, IsLatitude, IsLongitude, IsOptional, IsPositive, Max, Mi
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js';
+import { ListingStatus } from '../enums/listing-status.enum.js';
 import { ListingType } from '../enums/listing-type.enum.js';
+import { PropertyCategory } from '../enums/property-category.enum.js';
 
 /**
  * The search the whole API exists for.
@@ -40,6 +42,21 @@ export class SearchListingsDto extends PaginationQueryDto {
   @Max(20)
   @IsOptional()
   bedrooms?: number;
+
+  @ApiPropertyOptional({ enum: PropertyCategory })
+  @IsEnum(PropertyCategory)
+  @IsOptional()
+  category?: PropertyCategory;
+
+  /**
+   * Defaults to `available` rather than returning everything. A portal that
+   * shows let properties by default is the thing every user complains about,
+   * so the safe result is the default and seeing the rest is opt-in.
+   */
+  @ApiPropertyOptional({ enum: ListingStatus, default: ListingStatus.Available })
+  @IsEnum(ListingStatus)
+  @IsOptional()
+  status: ListingStatus = ListingStatus.Available;
 
   @ApiPropertyOptional({ example: 6.5244, description: 'Centre of the search. Required with longitude and radiusKm.' })
   @ValidateIf((dto: SearchListingsDto) => dto.hasAnyLocationPart)
