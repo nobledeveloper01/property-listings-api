@@ -23,7 +23,8 @@
     "migration:run": "tsx ./node_modules/typeorm/cli.js migration:run -d src/database/data-source.ts",
     "migration:revert": "tsx ./node_modules/typeorm/cli.js migration:revert -d src/database/data-source.ts",
     "migration:show": "tsx ./node_modules/typeorm/cli.js migration:show -d src/database/data-source.ts",
-    "seed": "tsx src/database/seeds/listings.seed.ts"
+    "seed": "tsx src/database/seeds/listings.seed.ts",
+    "db:test:create": "psql postgres://listings:listings@localhost:5433/listings -c \"CREATE DATABASE listings_test\""
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

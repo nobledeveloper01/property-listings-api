@@ -33,6 +33,15 @@ export class EnvironmentVariables {
   @IsString()
   DATABASE_URL!: string;
 
+  /**
+   * Only required when NODE_ENV is test, which is why it is optional here and
+   * fetched with getOrThrow at the point of use — a missing value then fails
+   * loudly at boot rather than silently falling back to DATABASE_URL.
+   */
+  @IsString()
+  @IsOptional()
+  TEST_DATABASE_URL?: string;
+
   /** Requests per minute, per IP. */
   @Type(() => Number)
   @IsInt()

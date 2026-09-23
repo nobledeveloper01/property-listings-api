@@ -7,5 +7,7 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    // The suites truncate the same table, so they must not interleave.
+    fileParallelism: false,
   },
 });

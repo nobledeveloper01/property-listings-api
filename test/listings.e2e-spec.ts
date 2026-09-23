@@ -1,3 +1,5 @@
+import { config as loadEnv } from 'dotenv';
+
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getDataSourceToken } from '@nestjs/typeorm';
@@ -14,8 +16,16 @@ import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter
  * These deliberately do not mock the database. The whole risk in this service
  * is a query — whether `ST_DWithin` returns the right rows, in the right
  * order, with the right distances — and a mocked repository would assert that
- * TypeORM was called with a string, which proves nothing. Run
- * `docker compose up -d` first.
+ * TypeORM was called with a string, which proves nothing.
+ *
+ * They run against TEST_DATABASE_URL, never DATABASE_URL. The suite truncates
+ * between cases, so pointing it at the development database wipes whatever
+ * you were looking at — which happened, and showed up as an API returning an
+ * empty array with nothing to explain why. A separate database is the fix; a
+ * note in the README asking people to remember is not.
+ *
+ * `docker compose up -d` then `pnpm test:e2e` is the whole setup. Migrations
+ * run below, so there is no separate step to forget.
  */
 describe('Listings (e2e)', () => {
   let app: INestApplication;
@@ -48,6 +58,10 @@ describe('Listings (e2e)', () => {
   });
 
   beforeAll(async () => {
+    loadEnv();
+
+    // Vitest sets NODE_ENV to test, and AppModule reads TEST_DATABASE_URL in
+    // that mode, so the suite cannot reach the development database.
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
 
     app = moduleRef.createNestApplication();
@@ -59,6 +73,11 @@ describe('Listings (e2e)', () => {
     await app.init();
 
     dataSource = moduleRef.get(getDataSourceToken());
+
+    // Idempotent: TypeORM records what it has applied, so this costs one
+    // query on every run after the first, and means `pnpm test:e2e` is the
+    // only command needed on a fresh checkout.
+    await dataSource.runMigrations();
   });
 
   beforeEach(async () => {
