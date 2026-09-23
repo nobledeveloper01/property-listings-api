@@ -1,4 +1,4 @@
-import { plainToInstance } from 'class-transformer';
+import { Type, plainToInstance } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min, validateSync } from 'class-validator';
 
 export enum NodeEnv {
@@ -20,6 +20,10 @@ export class EnvironmentVariables {
   @IsOptional()
   NODE_ENV: NodeEnv = NodeEnv.Development;
 
+  // Explicit @Type rather than relying on enableImplicitConversion: every
+  // value out of process.env is a string, and implicit conversion depends on
+  // emitted decorator metadata that is easy to lose to a build setting.
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(65535)
@@ -30,6 +34,7 @@ export class EnvironmentVariables {
   DATABASE_URL!: string;
 
   /** Requests per minute, per IP. */
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @IsOptional()
@@ -38,7 +43,6 @@ export class EnvironmentVariables {
 
 export function validateEnv(raw: Record<string, unknown>): EnvironmentVariables {
   const parsed = plainToInstance(EnvironmentVariables, raw, {
-    enableImplicitConversion: true,
     excludeExtraneousValues: false,
   });
 
