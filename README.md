@@ -1,214 +1,240 @@
 # Property Listings API
 
-A listings service for a Nigerian property marketplace. It stores listings for
-rent, sale and shortlet, and answers the question the search box actually asks:
-*what is available within X km of here, in my budget, with enough bedrooms?*
+An API for a property marketplace. You can add listings for rent, sale and
+shortlet, and you can search them.
 
-Built with NestJS, PostgreSQL and PostGIS. Swagger UI is at `/docs` once the
-app is running.
+The main thing it does is answer a question like "show me 2 bedroom flats to
+rent within 5 km of Lekki, under 3 million a year", and answer it fast even
+when there are a lot of listings.
 
-## Quick start
+Built with NestJS, PostgreSQL and PostGIS. The full API documentation is at
+`/docs` once it is running.
 
-You need Docker and Node 20+. The database runs in Docker; the API runs on the
-host.
+## What you need
+
+Docker and Node 20 or newer.
+
+## How to run it
 
 ```bash
 pnpm install
 cp .env.example .env
-docker compose up -d          # PostGIS on host port 5433
-pnpm migration:run            # creates the table, indexes and extensions
-pnpm seed                     # six real Lagos listings, fixed ids
+docker compose up -d          # starts the database
+pnpm migration:run            # creates the table and the indexes
+pnpm seed                     # adds 6 real Lagos listings to play with
 pnpm start:dev
 ```
 
-Then open http://localhost:3000/docs.
+Now open http://localhost:3000/docs. You can try every endpoint from that page.
 
-The seeded listings have stable ids and references, so the examples in Swagger
-resolve against a freshly seeded database rather than 404ing.
+The 6 sample listings always get the same IDs, so the examples in the docs
+actually work. If they changed every time you re-seeded, every example would
+give you "not found".
 
-A search that returns something. Rentals within 20 km of Victoria Island,
-nearest first:
+Here is a search that returns something. Rentals within 20 km of Victoria
+Island, closest first:
 
 ```bash
 curl "http://localhost:3000/listings?latitude=6.4281&longitude=3.4219&radiusKm=20&type=rent"
 ```
 
-The seeded listings are spread from Yaba out to Ajah, so the radius is worth
-varying: at 5 km the only thing near Victoria Island is the shortlet.
+The sample listings are spread from Yaba to Ajah, so try different distances.
+At 5 km the only thing near Victoria Island is the shortlet.
 
-### Tests
+## Running the tests
 
 ```bash
-pnpm db:test:create   # once
-pnpm test             # 16 unit tests, no database needed
-pnpm test:e2e         # 17 integration tests against real PostGIS
+pnpm db:test:create   # run this once
+pnpm test             # 16 tests, no database needed
+pnpm test:e2e         # 17 tests against a real database
 ```
 
-The integration suite truncates between cases, so it runs against its own
-database (`TEST_DATABASE_URL`). That is enforced in `app.module.ts` rather than
-documented here, because a README note is not a guarantee: when `NODE_ENV` is
-`test` the module reads the test URL and cannot open the development database
-even by accident. I found this the hard way, after a test run quietly emptied
-the database I was demoing from.
+The second set of tests empties the table between each test. So they run on a
+separate database, not the one you are using.
 
-## Endpoints
+This is not just a rule I wrote down. The app checks it in code: when it is
+running tests it uses the test database and it cannot reach the normal one,
+even by mistake. I added that after a test run wiped the listings I was in the
+middle of demoing.
 
-| Method | Path | Purpose |
+## The endpoints
+
+| Method | Path | What it does |
 |---|---|---|
-| `POST` | `/listings` | Create |
-| `GET` | `/listings` | List and search, paginated |
-| `GET` | `/listings/search` | Alias for the above |
-| `GET` | `/listings/:id` | Fetch by uuid |
-| `GET` | `/listings/reference/:reference` | Fetch by human reference (`EL-YABA23`) |
-| `PATCH` | `/listings/:id` | Partial update |
-| `DELETE` | `/listings/:id` | Soft delete |
-| `GET` | `/health` | Liveness, checks the database |
+| `POST` | `/listings` | Add a listing |
+| `GET` | `/listings` | List and search, with paging |
+| `GET` | `/listings/:id` | Get one listing by its ID |
+| `GET` | `/listings/reference/:reference` | Get one listing by its short code, like `EL-YABA23` |
+| `PATCH` | `/listings/:id` | Update part of a listing |
+| `DELETE` | `/listings/:id` | Delete a listing |
+| `GET` | `/health` | Check the app and the database are alive |
 
-## Design choices
+`GET /listings/search` also works. It is the same thing as `GET /listings`,
+just a second name for it, because that is the path most people try first.
 
-### Search and list are one operation
+## Why I built it this way
 
-Searching is listing with arguments, so the filters live on `GET /listings`
-rather than in a second handler with its own copy of the pagination, the
-ordering and the response envelope. A client that starts with an unfiltered
-feed and then applies a filter keeps the same URL instead of switching
-endpoints halfway through.
+### Searching and listing are the same job
 
-`GET /listings/search` exists as an alias, because it is the path people reach
-for first and a 404 there is a poor welcome. It delegates to the same handler
-rather than reimplementing it, and a test asserts the two return byte-identical
-bodies for the same query, so they cannot drift apart later.
+I did not make a separate search endpoint with its own code. Searching is just
+listing with filters added.
 
-Every filter is optional. Supply `latitude`, `longitude` and `radiusKm`
-together and the results come back nearest first, each carrying
-`distanceMetres`; supply none and you get everything available.
+Every filter is optional. Use none and you get everything. Add
+`latitude`, `longitude` and `radiusKm` together and you get the ones nearby,
+closest first, each one telling you how far away it is in metres.
 
 ```
 GET /listings?type=rent&bedrooms=3&minPrice=100000000&maxPrice=500000000
-             &latitude=6.4281&longitude=3.4219&radiusKm=20&page=1&limit=20
+             &latitude=6.4281&longitude=3.4219&radiusKm=20
 ```
 
-That one finds the 3 bedroom flat in Yaba. `bedrooms` is a minimum rather than
-an exact match, because somebody who asks for 2 will happily take 3. The prices are kobo, so it reads as
-"between ₦1m and ₦5m a year", for the reason in the next section but one.
+That finds the 3 bedroom flat in Yaba.
 
-### The radius search is index-backed, and that is the whole point
+Two things to know about that query. `bedrooms=3` means 3 or more, not exactly
+3, because someone who wants 2 bedrooms will still take 3. And the prices are
+in kobo, so that range means roughly ₦1m to ₦5m a year.
 
-The obvious way to find listings within X km is to compute the distance to
-every row and keep the close ones. It works, and it degrades badly, because
-computing a distance for every row means reading every row.
+### Finding listings near a point, without reading every row
 
-PostGIS gives you a way out. The `location` column is
-`geography(Point,4326)` with a GiST index, and the query filters with
-`ST_DWithin`, which the planner can answer from that index. `ST_Distance`
-appears only in the `SELECT`, to sort and return the distance for rows that
-already survived the filter.
+This is the part I spent the most time on.
 
-Measured on 50,000 listings, same radius, same machine:
+The easy way to find listings within 5 km is to measure the distance from your
+point to every single listing, then keep the close ones. That works. The
+problem is it has to look at every row in the table to do it. With 200
+listings you will not notice. With 200,000 you will.
 
-| Query | Plan | Time |
+PostGIS solves this. It is an add-on for PostgreSQL that understands
+locations. I store the location in a column it understands, and I put a
+special index on that column (a GiST index). An index is like the index at the
+back of a book. It lets the database jump straight to the listings in that area
+instead of reading the whole table.
+
+The trick is that you only get the speed up if you write the query the right
+way. I use a function called `ST_DWithin`, which the database can answer from
+the index. I only measure the exact distance afterwards, for the few rows that
+already passed the filter.
+
+I tested both versions on 50,000 listings:
+
+| How it is written | What the database does | Time |
 |---|---|---|
-| `ST_DWithin(location, point, 3000)` | Bitmap Index Scan on `idx_listings_location` | **48 ms** |
-| `ST_Distance(location, point) <= 3000` | Parallel Seq Scan | 399 ms |
+| `ST_DWithin` (what I used) | jumps to the right rows using the index | **48 ms** |
+| measure distance on every row | reads all 50,000 rows | 399 ms |
 
-Eight times faster at fifty thousand rows, and the gap widens with the table.
-This is the reason for the PostGIS dependency, and it is why the migration is
-hand written instead of generated: TypeORM will not emit a GiST index, so the
-one thing the feature depends on would have been silently missing.
+Eight times faster, and the gap gets bigger as the table grows.
 
-### Money is an integer, never a float
+This is also why I wrote the database migration by hand instead of letting
+TypeORM generate it. TypeORM does not know how to create that kind of index.
+If I had let it generate the migration, the index would have been missing and
+everything would still have looked fine, just slow.
 
-Prices are stored as `priceMinor`, a `bigint` count of kobo. Naira rents run
-into millions and floating point cannot represent 0.1 exactly, so a `float`
-column turns ₦2,500,000.00 into ₦2,499,999.99 sooner or later. Integers do not
-have that problem.
+### Prices are whole numbers, not decimals
 
-`pricePeriod` sits beside it because a Nigerian rent figure is meaningless
-without it: ₦3.5m is a normal annual rent in Lekki and an absurd monthly one.
+Prices are stored in kobo as a whole number. So ₦450,000 is stored as
+45,000,000.
 
-### Both kinds of identifier
+Computers cannot store decimal numbers exactly. If you store money as a
+decimal, sooner or later ₦2,500,000.00 becomes ₦2,499,999.99. Storing whole
+numbers avoids this completely. This is standard practice for money.
 
-Every listing has a `uuid` primary key, generated by the database, and a short
-human `reference` like `EL-YABA23`. UUIDs are correct for machines and hostile
-to people, and an agent reading a reference over the phone needs something
-sayable. The reference alphabet drops `0`, `O`, `1`, `I` and `L` for the same
-reason. It is minted with `crypto.randomInt`, checked by a unique index, and
-retried on collision, which is proved by the test that creates 40 listings
-concurrently and gets 40 distinct references.
+Each listing also says what the price means: per year, per night, or a one off
+sale price. In Nigeria a rent figure is useless without that. ₦3.5m is a
+normal yearly rent in Lekki and a ridiculous monthly one.
 
-### Validation twice, on purpose
+### Every listing has two IDs
 
-The DTOs validate with `class-validator`, and the table repeats the important
-rules as `CHECK` constraints (`price_minor > 0`, `bedrooms BETWEEN 0 AND 20`,
-latitude and longitude in range). The DTOs give callers a useful 400; the
-constraints mean a bad row cannot arrive through a migration, a seed or a
-console. `whitelist` and `forbidNonWhitelisted` are on, so a request that tries
-to set `status`, `reference` or `id` is rejected rather than quietly ignored.
+Each listing has a UUID, which is a long random ID like
+`5f14d1fa-6534-49ed-b23f-c4d5cb83c759`. That is good for computers.
 
-### Layout
+It also has a short code like `EL-YABA23`. That is for people. An agent reading
+an ID to a client over the phone needs something they can actually say. The
+short code leaves out the characters people mix up: `0`, `O`, `1`, `I` and `L`.
 
-Each module owns its layers in folders (`controllers/`, `services/`,
-`repositories/`, `dto/`, `entities/`, `enums/`, `utils/`), so a feature is one
-directory rather than seven files scattered across seven top-level folders.
+The short codes are random, so two could in theory come out the same. The
+database refuses duplicates and the app tries again if that happens. A test
+creates 40 listings at the same time and checks all 40 codes are different.
 
-The repository is the only place that writes SQL. `search()` and
-`countMatching()` share one `applyFilters()` helper, because a count that
-disagrees with its own result set shows up as a pagination control that is off
-by a page, and that bug is unpleasant to find.
+### The input is checked twice
 
-### Everything else
+Once when the request arrives, and again by the database itself.
 
-- **Rate limiting.** `@nestjs/throttler`, per IP, configurable, returning 429.
-- **Middleware.** A request logger that honours an inbound `x-request-id` and
-  logs on response finish. Middleware rather than an interceptor because
-  middleware still sees requests that the throttler rejects, and those are
-  exactly the ones worth logging.
-- **One error shape.** A global exception filter, so callers parse one
-  envelope: `statusCode`, `error`, `message`, `path`, `timestamp`, for a 404, a
-  validation failure, a 429 and an unhandled crash alike. `error` is the HTTP
-  status text and never a class name, which is a rule worth stating because
-  Nest's own `ThrottlerException` published its own name until I checked.
-  Unexpected errors log their stack and return a generic 500 message.
-- **Pagination.** `page` and `limit`, `limit` capped at 100, `page` capped at
-  10,000. That cap is not cosmetic: without it `page=1e21` overflowed the
-  `OFFSET` and returned a 500, and a deep offset is a cheap way to make the
-  database work hard.
-- **helmet**, CORS and a validated environment. The app refuses to boot on a
-  missing or malformed variable rather than failing on the first request.
+The first check gives you a clear error message saying what was wrong. The
+second one means a bad listing cannot get in through some other route, like a
+script or someone typing SQL by hand.
+
+The app also rejects fields it does not recognise instead of ignoring them. So
+nobody can sneak in extra fields and, for example, set their own listing to
+"sold" or pick their own ID.
+
+### How the files are arranged
+
+Each feature gets one folder, and everything for that feature lives inside it:
+its controller, its service, its database code, and so on. So to understand
+listings you open one folder, not seven.
+
+Only one file writes SQL. The code that fetches the results and the code that
+counts them share the same filter logic, so the count always matches what you
+actually get back. If they drifted apart, your page numbers would be wrong and
+it would be a horrible bug to track down.
+
+### Other things included
+
+- **Rate limiting.** One IP address can only make so many requests per minute.
+  After that it gets a 429 and is told when to try again.
+- **Request logging.** Every request is logged with an ID, so you can follow
+  one request through the logs.
+- **One error format.** Every error looks the same, whether it is "not found",
+  "bad input", "too many requests" or a crash. So whoever is building the app
+  that calls this only has to handle one shape. Crashes never leak internal
+  details back to the caller.
+- **Paging.** You choose the page and how many per page, up to 100. Page
+  numbers are capped, which sounds fussy but a huge page number used to crash
+  the API with a 500, and it is also an easy way for someone to overload the
+  database on purpose.
+- **Standard security headers**, and the app refuses to start if its settings
+  are missing or wrong, rather than breaking later on the first request.
 
 ## What I would do next
 
-**Authentication, first.** There is none. `agentId` is supplied by the client,
-so anyone can post a listing as any agent, and anyone can delete one. For a
-timeboxed exercise I chose to spend the time on the search and the data model
-and to say so plainly rather than ship a token check that looked like security
-without being it. In production this needs real auth, `agentId` taken from the
-token instead of the body, and ownership checks on update and delete.
+**Login and permissions, first.** There is none right now. The agent ID is sent
+by whoever calls the API, so anyone could post a listing pretending to be
+another agent, or delete someone else's listing.
 
-After that, in order:
+This was a deliberate choice for a short exercise. I put the time into the
+search and the data design instead, and I would rather say that plainly than
+add a fake looking security check. In a real version the agent would log in,
+the agent ID would come from their login rather than from the request, and the
+API would check you own a listing before letting you change or delete it.
 
-- **Caching.** Popular searches (2 bed in Lekki) repeat constantly. Redis with
-  a short TTL, keyed on the normalised query.
-- **Cursor pagination** for the listing feed. `OFFSET` gets slower the deeper
-  you go and can skip or repeat rows when listings are being written underneath
-  you.
-- **Images as uploads.** They are URLs today. Real ones need a signed upload to
-  object storage, and resizing, because agents upload 8 MB photos.
-- **Full text search** on title and locality, so "ikoyi 3 bedroom" works.
-  Postgres `tsvector` before reaching for Elasticsearch.
-- **Observability.** Structured JSON logs and metrics on search latency, which
-  is the number that will degrade first.
-- **Geocoding.** Callers send coordinates now. Most Nigerian users type an
-  estate name, so an address to coordinates step belongs in front of this.
+After that:
 
-## Notes
+- **Caching.** The same searches get repeated constantly. Popular ones could be
+  remembered for a short time instead of hitting the database each time.
+- **Better paging for big lists.** The current style gets slower the further
+  you page, and can repeat or skip rows if listings are being added while you
+  browse.
+- **Real image uploads.** Right now the API just stores image links. It should
+  accept actual uploads, store them properly and resize them, since agents
+  upload very large photos.
+- **Text search**, so someone can type "ikoyi 3 bedroom" instead of filling in
+  separate filter boxes.
+- **Monitoring**, especially on how long searches take, since that is the thing
+  most likely to get slow first.
+- **Address lookup.** Right now you have to send coordinates. Most people type
+  an estate or area name, so something needs to turn names into coordinates
+  before this API sees them.
 
-Migrations are explicit and `synchronize` is off, including in development.
-Auto synchronise is convenient until the day it decides to drop a column.
+## A couple of notes
 
-The e2e suite runs against a real PostGIS instance rather than mocks. The
-behaviour worth testing here is the SQL, and a mocked repository would have
-tested my assumptions instead of the database's. Those tests check the returned
-distances against an independently computed haversine and agree within 0.5%,
-the difference being that PostGIS measures on the WGS84 spheroid and haversine
-assumes a sphere.
+All database changes go through migration files, which are checked in. The app
+never changes the database structure by itself. That feature is convenient
+right up until the day it quietly deletes a column.
+
+The bigger tests run against a real database rather than a fake one. The risky
+part of this project is the search query itself, and a fake database would only
+prove that my code called it, not that it returned the right listings.
+
+Those tests also check the distances the API reports. They work out the
+distance separately using a different formula and compare. They agree to within
+0.5%. The small difference is because the Earth is not a perfect sphere, and
+the API is using the more accurate of the two methods.
