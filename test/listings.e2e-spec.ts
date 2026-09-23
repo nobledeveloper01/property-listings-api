@@ -204,6 +204,34 @@ describe('Listings (e2e)', () => {
     });
   });
 
+  describe('GET /listings/search — the alias', () => {
+    beforeEach(async () => {
+      await post(listing({ title: 'Yaba flat', locality: 'Yaba', ...YABA }));
+      await post(listing({ title: 'Lekki flat', locality: 'Lekki Phase 1', bedrooms: 2, ...LEKKI }));
+    });
+
+    it('answers identically to GET /listings for the same query', async () => {
+      const query = { ...YABA, radiusKm: 30, type: 'rent' };
+
+      const [alias, canonical] = await Promise.all([
+        request(app.getHttpServer()).get('/listings/search').query(query),
+        request(app.getHttpServer()).get('/listings').query(query),
+      ]);
+
+      expect(alias.status).toBe(canonical.status);
+      // Deep equality, not a spot check: the alias delegates, so any
+      // divergence at all means somebody reimplemented it.
+      expect(alias.body).toEqual(canonical.body);
+      expect(alias.body.meta.total).toBeGreaterThan(0);
+    });
+
+    it('is not swallowed by the :id route', async () => {
+      // `search` is not a UUID, so if it were declared after `:id` this would
+      // come back 400 rather than a result set.
+      await request(app.getHttpServer()).get('/listings/search').expect(200);
+    });
+  });
+
   describe('lookup, update and delete', () => {
     it('finds a listing by the reference a caller quotes', async () => {
       const { body: created } = await post(listing());

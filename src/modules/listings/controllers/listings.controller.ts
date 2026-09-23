@@ -24,13 +24,12 @@ export class ListingsController {
   }
 
   /**
-   * Search and plain listing are the same endpoint.
+   * Listing and searching are one operation with different arguments.
    *
-   * A separate `/listings/search` would duplicate pagination, ordering and
-   * the response envelope for the sake of a word in the path, and a client
-   * that starts unfiltered and adds a filter would have to change URL
-   * mid-journey. Every filter is optional; supplying none lists everything
-   * available.
+   * Every filter is optional, so an unfiltered call lists what is available
+   * and adding parameters narrows it. A client that starts with a feed and
+   * then applies a filter keeps the same URL instead of switching endpoints
+   * halfway through.
    */
   @Get()
   @ApiOperation({
@@ -41,6 +40,27 @@ export class ListingsController {
   })
   @ApiPaginatedResponse(ListingResponseDto)
   findAll(@Query() criteria: SearchListingsDto) {
+    return this.listings.findAll(criteria);
+  }
+
+  /**
+   * `/listings/search` is an alias for the query above.
+   *
+   * Callers reach for it, and a search that 404s because the path was
+   * spelled the obvious way is a poor welcome. It delegates rather than
+   * reimplements, so the two cannot answer differently — a test asserts they
+   * return the same body for the same query.
+   *
+   * Declared before `:id`, like the reference route below, or the UUID route
+   * would swallow the word "search" and reject it as a malformed id.
+   */
+  @Get('search')
+  @ApiOperation({
+    summary: 'Alias for GET /listings, for callers that expect a search path.',
+    description: 'Identical behaviour and identical response to GET /listings with the same query.',
+  })
+  @ApiPaginatedResponse(ListingResponseDto)
+  search(@Query() criteria: SearchListingsDto) {
     return this.listings.findAll(criteria);
   }
 

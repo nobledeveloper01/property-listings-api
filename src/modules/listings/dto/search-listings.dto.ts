@@ -35,7 +35,13 @@ export class SearchListingsDto extends PaginationQueryDto {
   @IsOptional()
   maxPrice?: number;
 
-  @ApiPropertyOptional({ minimum: 0, maximum: 20 })
+  @ApiPropertyOptional({
+    minimum: 0,
+    maximum: 20,
+    description:
+      'Minimum bedrooms, not an exact match. Somebody who asks for 2 will take 3; filtering ' +
+      'exactly would hide the better flat next door.',
+  })
   @Type(() => Number)
   @IsInt()
   @Min(0)

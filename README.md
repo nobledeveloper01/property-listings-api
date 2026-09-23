@@ -40,8 +40,8 @@ varying: at 5 km the only thing near Victoria Island is the shortlet.
 
 ```bash
 pnpm db:test:create   # once
-pnpm test             # 11 unit tests, no database needed
-pnpm test:e2e         # 15 integration tests against real PostGIS
+pnpm test             # 16 unit tests, no database needed
+pnpm test:e2e         # 17 integration tests against real PostGIS
 ```
 
 The integration suite truncates between cases, so it runs against its own
@@ -57,6 +57,7 @@ the database I was demoing from.
 |---|---|---|
 | `POST` | `/listings` | Create |
 | `GET` | `/listings` | List and search, paginated |
+| `GET` | `/listings/search` | Alias for the above |
 | `GET` | `/listings/:id` | Fetch by uuid |
 | `GET` | `/listings/reference/:reference` | Fetch by human reference (`EL-YABA23`) |
 | `PATCH` | `/listings/:id` | Partial update |
@@ -65,14 +66,18 @@ the database I was demoing from.
 
 ## Design choices
 
-### Search and list are one endpoint
+### Search and list are one operation
 
-The brief asks for a search endpoint. I put the filters on `GET /listings`
-instead of adding `GET /listings/search`, because the two would have been the
-same handler: identical pagination, identical ordering, identical response
-envelope, differing only by a word in the path. It also means a client that
-starts with an unfiltered list and then adds a filter keeps the same URL rather
-than switching endpoints halfway through.
+Searching is listing with arguments, so the filters live on `GET /listings`
+rather than in a second handler with its own copy of the pagination, the
+ordering and the response envelope. A client that starts with an unfiltered
+feed and then applies a filter keeps the same URL instead of switching
+endpoints halfway through.
+
+`GET /listings/search` exists as an alias, because it is the path people reach
+for first and a 404 there is a poor welcome. It delegates to the same handler
+rather than reimplementing it, and a test asserts the two return byte-identical
+bodies for the same query, so they cannot drift apart later.
 
 Every filter is optional. Supply `latitude`, `longitude` and `radiusKm`
 together and the results come back nearest first, each carrying
@@ -83,7 +88,8 @@ GET /listings?type=rent&bedrooms=3&minPrice=100000000&maxPrice=500000000
              &latitude=6.4281&longitude=3.4219&radiusKm=20&page=1&limit=20
 ```
 
-That one finds the 3 bedroom flat in Yaba. The prices are kobo, so it reads as
+That one finds the 3 bedroom flat in Yaba. `bedrooms` is a minimum rather than
+an exact match, because somebody who asks for 2 will happily take 3. The prices are kobo, so it reads as
 "between ₦1m and ₦5m a year", for the reason in the next section but one.
 
 ### The radius search is index-backed, and that is the whole point
@@ -157,7 +163,11 @@ by a page, and that bug is unpleasant to find.
   logs on response finish. Middleware rather than an interceptor because
   middleware still sees requests that the throttler rejects, and those are
   exactly the ones worth logging.
-- **One error shape.** A global exception filter, so callers parse one envelope.
+- **One error shape.** A global exception filter, so callers parse one
+  envelope: `statusCode`, `error`, `message`, `path`, `timestamp`, for a 404, a
+  validation failure, a 429 and an unhandled crash alike. `error` is the HTTP
+  status text and never a class name, which is a rule worth stating because
+  Nest's own `ThrottlerException` published its own name until I checked.
   Unexpected errors log their stack and return a generic 500 message.
 - **Pagination.** `page` and `limit`, `limit` capped at 100, `page` capped at
   10,000. That cap is not cosmetic: without it `page=1e21` overflowed the

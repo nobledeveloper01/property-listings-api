@@ -1,3 +1,5 @@
+import { STATUS_CODES } from 'node:http';
+
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
@@ -45,17 +47,34 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return { error: 'Internal Server Error', message: 'Something went wrong on our side.' };
     }
 
-    const body = (exception as HttpException).getResponse();
+    const error = exception as HttpException;
+    const body = error.getResponse();
+
+    // The status text, never the exception's class name. Nest's own
+    // ThrottlerException is called exactly that, so falling back to the class
+    // name published `"error": "ThrottlerException"` while every other status
+    // published "Not Found" or "Bad Request" — one response shape with two
+    // different vocabularies, and an internal one at that.
+    const statusText = STATUS_CODES[error.getStatus()] ?? 'Error';
 
     if (typeof body === 'string') {
-      return { error: (exception as HttpException).name, message: body };
+      return { error: statusText, message: this.withoutClassPrefix(body, error.name) };
     }
 
-    const { error, message } = body as { error?: string; message?: string | string[] };
+    const { error: declared, message } = body as { error?: string; message?: string | string[] };
 
     return {
-      error: error ?? (exception as HttpException).name,
+      error: declared ?? statusText,
       message: message ?? 'Request failed.',
     };
+  }
+
+  /**
+   * Strips a leading `SomeException: ` that Nest puts on a few built-in
+   * messages. The caller wants "Too Many Requests", not the name of the class
+   * that decided so.
+   */
+  private withoutClassPrefix(message: string, name: string): string {
+    return message.startsWith(`${name}: `) ? message.slice(name.length + 2) : message;
   }
 }
