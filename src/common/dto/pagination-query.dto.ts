@@ -19,21 +19,21 @@ export class PaginationQueryDto {
    * is also meaningless — nobody reads page forty thousand — and scanning
    * that far is a cheap way to make the database work hard on request.
    */
-  @ApiPropertyOptional({ minimum: 1, maximum: 10_000, default: 1, description: 'One-based page number.' })
+  @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 10_000, default: 1, description: 'One-based page number.' })
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(10_000)
   @IsOptional()
-  page = 1;
+  page: number = 1;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 20 })
+  @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 100, default: 20, description: 'Results per page, capped at 100.' })
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
   @IsOptional()
-  limit = 20;
+  limit: number = 20;
 
   get skip(): number {
     return (this.page - 1) * this.limit;

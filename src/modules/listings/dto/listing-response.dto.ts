@@ -24,12 +24,14 @@ export class ListingResponseDto {
 
   @ApiProperty({ description: 'Price in kobo.' }) priceMinor!: number;
   @ApiProperty({ enum: PricePeriod }) pricePeriod!: PricePeriod;
-  @ApiPropertyOptional({ nullable: true }) serviceChargeMinor!: number | null;
+  @ApiPropertyOptional({ type: Number, nullable: true, description: 'Annual service charge in kobo, when the listing states one.' })
+  serviceChargeMinor!: number | null;
 
   @ApiProperty() bedrooms!: number;
   @ApiProperty() bathrooms!: number;
   @ApiProperty() toilets!: number;
-  @ApiPropertyOptional({ nullable: true }) areaSqm!: number | null;
+  @ApiPropertyOptional({ type: Number, nullable: true, description: 'Floor area in square metres, when known.' })
+  areaSqm!: number | null;
   @ApiProperty({ enum: Furnishing }) furnishing!: Furnishing;
   @ApiProperty({ type: [String] }) amenities!: string[];
   @ApiProperty({ type: [String] }) images!: string[];
