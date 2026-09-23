@@ -4,7 +4,6 @@ import { Furnishing } from '../../modules/listings/enums/furnishing.enum.js';
 import { ListingType } from '../../modules/listings/enums/listing-type.enum.js';
 import { PricePeriod } from '../../modules/listings/enums/price-period.enum.js';
 import { PropertyCategory } from '../../modules/listings/enums/property-category.enum.js';
-import { generateListingReference } from '../../modules/listings/utils/listing-reference.js';
 
 /**
  * Enough real Lagos geography for the search to be worth trying.
@@ -19,8 +18,9 @@ const AGENTS = [
   '22222222-2222-4222-8222-222222222222',
 ];
 
-const SEED: Array<Partial<Listing> & { latitude: number; longitude: number }> = [
+const SEED: Array<Partial<Listing> & { latitude: number; longitude: number; reference: string }> = [
   {
+    reference: 'EL-YABA23',
     title: 'Three bedroom flat, Herbert Macaulay Way',
     description: 'Newly built three bedroom flat with a fitted kitchen and a borehole.',
     type: ListingType.Rent, category: PropertyCategory.Apartment,
@@ -31,6 +31,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number }> = 
     latitude: 6.5095, longitude: 3.3711,
   },
   {
+    reference: 'EL-PHAS24',
     title: 'Two bedroom serviced flat, Lekki Phase 1',
     description: 'Serviced two bedroom with 24 hour power and a shared gym.',
     type: ListingType.Rent, category: PropertyCategory.Apartment,
@@ -41,6 +42,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number }> = 
     latitude: 6.4698, longitude: 3.5852,
   },
   {
+    reference: 'EL-GRA345',
     title: 'Four bedroom detached duplex, Ikeja GRA',
     description: 'Detached duplex on a quiet street, with a boys quarters.',
     type: ListingType.Sale, category: PropertyCategory.Duplex,
@@ -51,6 +53,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number }> = 
     latitude: 6.6018, longitude: 3.3515,
   },
   {
+    reference: 'EL-VCTRA2',
     title: 'Furnished one bedroom shortlet, Victoria Island',
     description: 'Fully furnished one bedroom, let by the night.',
     type: ListingType.Shortlet, category: PropertyCategory.Apartment,
@@ -61,6 +64,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number }> = 
     latitude: 6.4281, longitude: 3.4219,
   },
   {
+    reference: 'EL-SURU25',
     title: 'Self contain, Surulere',
     description: 'Single room self contain with its own kitchen and bathroom.',
     type: ListingType.Rent, category: PropertyCategory.SelfContain,
@@ -71,6 +75,7 @@ const SEED: Array<Partial<Listing> & { latitude: number; longitude: number }> = 
     latitude: 6.4969, longitude: 3.3541,
   },
   {
+    reference: 'EL-AJAH26',
     title: 'Five bedroom duplex, Ajah',
     description: 'Newly finished five bedroom duplex in a gated estate.',
     type: ListingType.Sale, category: PropertyCategory.Duplex,
@@ -95,7 +100,6 @@ async function seed(): Promise<void> {
     SEED.map(({ latitude, longitude, ...rest }, index) =>
       repository.create({
         ...rest,
-        reference: generateListingReference(),
         agentId: AGENTS[index % AGENTS.length],
         location: { type: 'Point' as const, coordinates: [longitude, latitude] as [number, number] },
       }),

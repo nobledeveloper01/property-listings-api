@@ -15,7 +15,8 @@ import { PropertyCategory } from '../enums/property-category.enum.js';
  */
 export class ListingResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty({ example: 'EL-7K2M9Q', description: 'The reference a caller quotes.' }) reference!: string;
+  @ApiProperty({ example: 'EL-YABA23', description: 'The reference a caller quotes. Seeded listings use stable references, so this one resolves after `pnpm seed`.' })
+  reference!: string;
   @ApiProperty() title!: string;
   @ApiProperty() description!: string;
   @ApiProperty({ enum: ListingType }) type!: ListingType;
