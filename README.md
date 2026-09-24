@@ -25,13 +25,18 @@ just takes a few seconds longer to start.
 ```bash
 pnpm install
 cp .env.example .env
-docker compose up -d          # starts the database
+docker compose up -d --wait   # starts the database and waits for it to be ready
 pnpm migration:run            # creates the table and the indexes
 pnpm seed                     # adds 2 agents and 6 real Lagos listings
 pnpm start:dev
 ```
 
 Now open http://localhost:3000/docs. You can try every endpoint from that page.
+
+The `--wait` matters on the first run. Without it Docker returns as soon as the
+container starts, but on a brand new volume Postgres still has to set itself up,
+and the migration lands before it is listening. The compose file already
+defines a health check, so `--wait` just holds until it passes.
 
 The 6 sample listings always get the same IDs, so the examples in the docs
 actually work. If they changed every time you re-seeded, every example would
