@@ -60,6 +60,33 @@ describe('Listings (e2e)', () => {
     ...over,
   });
 
+  /**
+   * Great circle distance on a sphere, in metres.
+   *
+   * Deliberately a different method from the one under test. PostGIS measures
+   * on the WGS84 spheroid; this assumes a sphere. If the two agree closely the
+   * API is almost certainly doing real geodesy rather than returning a number
+   * that merely looks plausible, which an assertion like "between 9km and 12km"
+   * cannot tell you.
+   */
+  const haversineMetres = (
+    from: { latitude: number; longitude: number },
+    to: { latitude: number; longitude: number },
+  ): number => {
+    const radius = 6_371_008.8; // IUGG mean Earth radius
+    const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+
+    const dLat = toRadians(to.latitude - from.latitude);
+    const dLng = toRadians(to.longitude - from.longitude);
+    const lat1 = toRadians(from.latitude);
+    const lat2 = toRadians(to.latitude);
+
+    const a =
+      Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+
+    return 2 * radius * Math.asin(Math.sqrt(a));
+  };
+
   beforeAll(async () => {
     loadEnv();
 
@@ -166,6 +193,38 @@ describe('Listings (e2e)', () => {
       // Checkable against a map: Yaba to Ikeja GRA is roughly 10.4 km.
       expect(body.data[1].distanceMetres).toBeGreaterThan(9_000);
       expect(body.data[1].distanceMetres).toBeLessThan(12_000);
+    });
+
+    it('reports distances that match an independently computed one', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/listings')
+        .query({ ...YABA, radiusKm: 30 })
+        .expect(200);
+
+      expect(body.data.length).toBeGreaterThan(1);
+
+      for (const listing of body.data) {
+        const expected = haversineMetres(YABA, {
+          latitude: listing.latitude,
+          longitude: listing.longitude,
+        });
+
+        // The searched point itself is 0 metres away, and a ratio against zero
+        // says nothing, so that row is checked absolutely instead.
+        if (expected < 1) {
+          expect(listing.distanceMetres).toBeLessThan(1);
+          continue;
+        }
+
+        const drift = Math.abs(listing.distanceMetres - expected) / expected;
+
+        // One percent. The observed gap is about 0.5%, which is the spheroid
+        // against the sphere at this latitude, and PostGIS is the more
+        // accurate of the two. The bound is set above that on purpose: it is
+        // there to catch a wrong formula or wrong units, which would be out by
+        // far more than a percent, not to pin the geodesy model.
+        expect(drift).toBeLessThan(0.01);
+      }
     });
 
     it('combines distance with the other filters', async () => {

@@ -287,7 +287,12 @@ The bigger tests run against a real database rather than a fake one. The risky
 part of this project is the search query itself, and a fake database would only
 prove that my code called it, not that it returned the right listings.
 
-Those tests also check the distances the API reports. They work out the
-distance separately using a different formula and compare. They agree to within
-0.5%. The small difference is because the Earth is not a perfect sphere, and
-the API is using the more accurate of the two methods.
+Those tests also check the distances the API reports. For every listing a
+search returns, the test works the distance out again using a different
+formula and compares the two. They agree to within about half a percent.
+
+That small gap is the point rather than a problem. The database measures on a
+model of the Earth that accounts for it being slightly flattened, while the
+check in the test assumes a perfect sphere. They should differ by roughly that
+much, and the database is the more accurate of the two. What the test is really
+catching is a wrong formula or the wrong units, which would be out by far more.
