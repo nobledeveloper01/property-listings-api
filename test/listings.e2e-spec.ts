@@ -203,20 +203,20 @@ describe('Listings (e2e)', () => {
 
       expect(body.data.length).toBeGreaterThan(1);
 
-      for (const listing of body.data) {
+      for (const row of body.data) {
         const expected = haversineMetres(YABA, {
-          latitude: listing.latitude,
-          longitude: listing.longitude,
+          latitude: row.latitude,
+          longitude: row.longitude,
         });
 
         // The searched point itself is 0 metres away, and a ratio against zero
         // says nothing, so that row is checked absolutely instead.
         if (expected < 1) {
-          expect(listing.distanceMetres).toBeLessThan(1);
+          expect(row.distanceMetres).toBeLessThan(1);
           continue;
         }
 
-        const drift = Math.abs(listing.distanceMetres - expected) / expected;
+        const drift = Math.abs(row.distanceMetres - expected) / expected;
 
         // One percent. The observed gap is about 0.5%, which is the spheroid
         // against the sphere at this latitude, and PostGIS is the more
